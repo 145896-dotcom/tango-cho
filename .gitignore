@@ -1,0 +1,17 @@
+# dependencies
+node_modules/
+
+# build cache
+.vite/
+*.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# editor
+.vscode/
+.idea/
+
+# local preview harness
+preview/
