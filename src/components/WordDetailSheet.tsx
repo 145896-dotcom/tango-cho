@@ -2,9 +2,17 @@ import { useEffect, useState } from 'react'
 import { LESSON_BY_NO, SECTION_LABELS, romajiOf } from '../data/catalog'
 import { formatDue } from '../lib/format'
 import { masteryOf } from '../lib/srs'
-import { speak, speechReady } from '../lib/tts'
+import {
+  NO_VOICE_HINT,
+  initSpeech,
+  speak,
+  speechState,
+  subscribeSpeech,
+  type SpeechState,
+} from '../lib/tts'
 import type { Word } from '../types'
 import { useStore } from '../store'
+import { useToast } from './Toast'
 import { Sheet } from './Sheet'
 import { IconVolume } from './Icons'
 
@@ -18,13 +26,14 @@ export function WordDetailSheet({
   onClose: () => void
 }) {
   const { cardOf } = useStore()
-  const [canSpeak, setCanSpeak] = useState(false)
+  const toast = useToast()
+  const [speech, setSpeech] = useState<SpeechState>(() => speechState())
 
   useEffect(() => {
-    setCanSpeak(speechReady())
-    const timer = window.setTimeout(() => setCanSpeak(speechReady()), 600)
-    return () => window.clearTimeout(timer)
-  }, [word])
+    initSpeech()
+    setSpeech(speechState())
+    return subscribeSpeech(() => setSpeech(speechState()))
+  }, [])
 
   if (!word) {
     return <Sheet open={false} onClose={onClose}>{null}</Sheet>
@@ -34,6 +43,14 @@ export function WordDetailSheet({
   const level = masteryOf(card)
   const lesson = LESSON_BY_NO.get(word.lesson)
   const reading = word.kana !== word.surface ? word.kana : ''
+
+  const play = () => {
+    if (!speechState().ready) {
+      toast(NO_VOICE_HINT)
+      return
+    }
+    speak(reading || word.surface)
+  }
 
   return (
     <Sheet open={!!word} onClose={onClose} title="单词详情">
@@ -46,11 +63,10 @@ export function WordDetailSheet({
           </div>
           <button
             type="button"
-            className="speakbtn"
-            onClick={() => speak(reading || word.surface)}
-            disabled={!canSpeak}
-            title={canSpeak ? '朗读' : '当前设备没有日语发音'}
-            aria-label="朗读"
+            className={`speakbtn${speech.ready ? '' : ' is-muted'}`}
+            onClick={play}
+            title={speech.ready ? `朗读（${speech.voice ?? '日语'}）` : '当前设备没有日语语音'}
+            aria-label={speech.ready ? '朗读' : '当前设备没有日语语音'}
           >
             <IconVolume size={20} />
           </button>

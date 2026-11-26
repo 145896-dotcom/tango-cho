@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { AppBar } from '../components/AppBar'
 import { CountUp } from '../components/CountUp'
 import { Segmented } from '../components/Segmented'
@@ -9,12 +9,21 @@ import {
   IconRefresh,
   IconTrash,
   IconUpload,
+  IconVolume,
 } from '../components/Icons'
 import { LESSONS, META, TOTAL } from '../data/catalog'
 import { formatPercent, pad2 } from '../lib/format'
 import { DIRECTION_META, DIRECTION_ORDER } from '../lib/quiz'
 import { navigate } from '../lib/router'
 import { dayKey, recentDays, storageAvailable } from '../lib/storage'
+import {
+  NO_VOICE_HINT,
+  initSpeech,
+  speak,
+  speechState,
+  subscribeSpeech,
+  type SpeechState,
+} from '../lib/tts'
 import { useStore } from '../store'
 import type { DirectionPref, SessionSize } from '../types'
 
@@ -53,7 +62,23 @@ export function StatsScreen() {
   const { state, derived, updateSettings, resetProgress, importFromText, exportText } = useStore()
   const toast = useToast()
   const [confirmReset, setConfirmReset] = useState(false)
+  const [voiceHelp, setVoiceHelp] = useState(false)
+  const [speech, setSpeech] = useState<SpeechState>(() => speechState())
   const fileRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    initSpeech()
+    setSpeech(speechState())
+    return subscribeSpeech(() => setSpeech(speechState()))
+  }, [])
+
+  const testVoice = () => {
+    if (!speechState().ready) {
+      toast(NO_VOICE_HINT)
+      return
+    }
+    speak('こんにちは、にほんご')
+  }
 
   const days = recentDays(state, 7)
   const peak = Math.max(1, ...days.map((day) => day.stat.answered))
@@ -264,6 +289,30 @@ export function StatsScreen() {
 
         <section className="block">
           <header className="block__head">
+            <h2>发音</h2>
+            <span>{speech.ready ? `使用「${speech.voice}」` : '没有日语语音'}</span>
+          </header>
+          <p className="block__copy">
+            {speech.ready
+              ? '答题后会朗读单词；也可以点词条里的喇叭单独听。'
+              : '这台设备没有可用的日语语音，喇叭不会出声。装一个日语语音包再刷新页面即可。'}
+          </p>
+          <div className="data-actions" style={{ marginTop: 12 }}>
+            <button type="button" className="ghostbtn ghostbtn--sm" onClick={testVoice}>
+              <IconVolume size={16} /> 测试发音
+            </button>
+            <button
+              type="button"
+              className="ghostbtn ghostbtn--sm"
+              onClick={() => setVoiceHelp(true)}
+            >
+              怎么安装
+            </button>
+          </div>
+        </section>
+
+        <section className="block">
+          <header className="block__head">
             <h2>数据</h2>
             <span>{storageAvailable ? '保存在本机浏览器' : '当前环境无法保存'}</span>
           </header>
@@ -338,6 +387,33 @@ export function StatsScreen() {
           <p className="storage-warn">当前浏览器不允许本地存储，进度只保留在本次会话中。</p>
         ) : null}
       </main>
+
+      <Sheet
+        open={voiceHelp}
+        onClose={() => setVoiceHelp(false)}
+        title="装一个日语语音"
+        description="浏览器只会用系统里已安装的语音。装好日语语音后刷新页面，喇叭就会出声。"
+      >
+        <ul className="bullets">
+          <li>
+            <b>Windows 11</b>：设置 → 时间和语言 → 语言和区域 → 添加语言「日本語」→
+            勾选「语音」安装；装完重启浏览器。
+          </li>
+          <li>
+            <b>iPhone / iPad</b>：设置 → 辅助功能 → 朗读内容 → 声音 → 日语 → 下载一个语音。
+          </li>
+          <li>
+            <b>Android</b>：设置 → 系统 → 语言和输入法 → 文字转语音 → Google 文字转语音 →
+            安装语音数据 → 日本語。
+          </li>
+          <li>
+            <b>Mac</b>：系统设置 → 辅助功能 → 朗读内容 → 系统声音 → 管理声音 → 日语（Kyoko）。
+          </li>
+          <li>
+            浏览器里的「Google 日本語」是联网语音，网络到不了 Google 时会没声音；这种情况装系统语音更稳。
+          </li>
+        </ul>
+      </Sheet>
 
       <Sheet
         open={confirmReset}

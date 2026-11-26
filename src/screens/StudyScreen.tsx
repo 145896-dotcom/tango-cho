@@ -24,8 +24,16 @@ import { formatDuration, formatPercent } from '../lib/format'
 import { navigate, useRoute } from '../lib/router'
 import { buildSession, parseList, scopeOf, type Scope } from '../lib/session'
 import type { GradeKey } from '../lib/srs'
-import { speak, speechReady } from '../lib/tts'
+import {
+  NO_VOICE_HINT,
+  initSpeech,
+  speak,
+  speechState,
+  subscribeSpeech,
+  type SpeechState,
+} from '../lib/tts'
 import { useStore } from '../store'
+import { useToast } from '../components/Toast'
 import type { Question, Word } from '../types'
 
 interface Summary {
@@ -37,6 +45,7 @@ interface Summary {
 export function StudyScreen() {
   const route = useRoute()
   const { state, reviewWord, updateSettings } = useStore()
+  const toast = useToast()
   const reduce = useReducedMotion()
 
   const lessonParam = Number(route.query.get('lesson') ?? 0)
@@ -69,16 +78,37 @@ export function StudyScreen() {
   const [summary, setSummary] = useState<Summary | null>(null)
   const [detailWord, setDetailWord] = useState<Word | null>(null)
   const [menuOpen, setMenuOpen] = useState(false)
-  const [canSpeak, setCanSpeak] = useState(false)
+  const [speech, setSpeech] = useState<SpeechState>(() => speechState())
+  const warnedNoVoice = useRef(false)
 
   const startedAt = useRef(Date.now())
   const shownAt = useRef(Date.now())
 
   useEffect(() => {
-    setCanSpeak(speechReady())
-    const timer = window.setTimeout(() => setCanSpeak(speechReady()), 600)
-    return () => window.clearTimeout(timer)
+    initSpeech()
+    setSpeech(speechState())
+    return subscribeSpeech(() => setSpeech(speechState()))
   }, [])
+
+  const speakOrExplain = (text: string) => {
+    if (!speechState().ready) {
+      toast(NO_VOICE_HINT)
+      return
+    }
+    speak(text)
+  }
+
+  const playWord = (word: Word) => {
+    if (!state.settings.autoSpeak) return
+    if (!speechState().ready) {
+      if (!warnedNoVoice.current) {
+        warnedNoVoice.current = true
+        toast(NO_VOICE_HINT)
+      }
+      return
+    }
+    speak(word.kana)
+  }
 
   // Remember the lesson the learner actually opened, so "继续学习" stays true.
   useEffect(() => {
@@ -119,7 +149,7 @@ export function StudyScreen() {
     setAnswered(true)
     if (ok) setCorrectCount((value) => value + 1)
     reviewWord(q.word.id, grade)
-    if (state.settings.autoSpeak) speak(q.word.kana)
+    playWord(q.word)
   }
 
   const reveal = () => {
@@ -127,7 +157,7 @@ export function StudyScreen() {
     setPicked(null)
     setAnswered(true)
     reviewWord(q.word.id, 'again')
-    if (state.settings.autoSpeak) speak(q.word.kana)
+    playWord(q.word)
   }
 
   const keyHandler = useRef<(event: KeyboardEvent) => void>(() => {})
@@ -376,11 +406,14 @@ export function StudyScreen() {
                 <span className={`answer-note__value${note.jp ? ' jp' : ''}`}>{note.value}</span>
                 <button
                   type="button"
-                  className="answer-note__speak"
-                  onClick={() => speak(q.word.kana)}
-                  disabled={!canSpeak}
-                  aria-label="朗读单词"
-                  title={canSpeak ? '朗读' : '当前设备没有日语发音'}
+                  className={`answer-note__speak${speech.ready ? '' : ' is-muted'}`}
+                  onClick={() => speakOrExplain(q.word.kana)}
+                  aria-label={speech.ready ? '朗读单词' : '当前设备没有日语语音'}
+                  title={
+                    speech.ready
+                      ? '朗读'
+                      : '当前设备没有日语语音，点一下看怎么安装'
+                  }
                 >
                   <IconVolume size={17} />
                 </button>

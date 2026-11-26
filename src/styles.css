@@ -1545,6 +1545,10 @@ button {
   cursor: not-allowed;
 }
 
+.answer-note__speak.is-muted {
+  opacity: 0.4;
+}
+
 .answer-note__verdict {
   margin-left: auto;
   font-size: 11px;
@@ -2443,6 +2447,10 @@ button {
 .speakbtn:disabled {
   opacity: 0.35;
   cursor: not-allowed;
+}
+
+.speakbtn.is-muted {
+  opacity: 0.45;
 }
 
 .detail__pos {
