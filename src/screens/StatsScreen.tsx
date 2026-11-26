@@ -270,7 +270,7 @@ export function StatsScreen() {
           <div className="setting">
             <div className="setting__label">
               <span>答题后自动发音</span>
-              <small>需要设备自带日语语音</small>
+              <small>{audio ? '优先播放预录读音' : '需要设备自带日语语音'}</small>
             </div>
             <Switch
               label="答题后自动发音"
