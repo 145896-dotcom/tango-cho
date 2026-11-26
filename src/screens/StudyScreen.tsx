@@ -25,9 +25,9 @@ import { navigate, useRoute } from '../lib/router'
 import { buildSession, parseList, scopeOf, type Scope } from '../lib/session'
 import type { GradeKey } from '../lib/srs'
 import {
-  NO_VOICE_HINT,
   initSpeech,
   speak,
+  speechHint,
   speechState,
   subscribeSpeech,
   type SpeechState,
@@ -91,8 +91,9 @@ export function StudyScreen() {
   }, [])
 
   const speakOrExplain = (text: string) => {
-    if (!speechState().ready) {
-      toast(NO_VOICE_HINT)
+    const current = speechState()
+    if (!current.ready) {
+      toast(speechHint(current))
       return
     }
     speak(text)
@@ -100,10 +101,11 @@ export function StudyScreen() {
 
   const playWord = (word: Word) => {
     if (!state.settings.autoSpeak) return
-    if (!speechState().ready) {
+    const current = speechState()
+    if (!current.ready) {
       if (!warnedNoVoice.current) {
         warnedNoVoice.current = true
-        toast(NO_VOICE_HINT)
+        toast(speechHint(current))
       }
       return
     }
@@ -412,7 +414,7 @@ export function StudyScreen() {
                   title={
                     speech.ready
                       ? '朗读'
-                      : '当前设备没有日语语音，点一下看怎么安装'
+                      : speechHint(speech)
                   }
                 >
                   <IconVolume size={17} />

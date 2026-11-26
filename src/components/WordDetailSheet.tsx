@@ -3,9 +3,9 @@ import { LESSON_BY_NO, SECTION_LABELS, romajiOf } from '../data/catalog'
 import { formatDue } from '../lib/format'
 import { masteryOf } from '../lib/srs'
 import {
-  NO_VOICE_HINT,
   initSpeech,
   speak,
+  speechHint,
   speechState,
   subscribeSpeech,
   type SpeechState,
@@ -45,8 +45,9 @@ export function WordDetailSheet({
   const reading = word.kana !== word.surface ? word.kana : ''
 
   const play = () => {
-    if (!speechState().ready) {
-      toast(NO_VOICE_HINT)
+    const current = speechState()
+    if (!current.ready) {
+      toast(speechHint(current))
       return
     }
     speak(reading || word.surface)
@@ -65,7 +66,7 @@ export function WordDetailSheet({
             type="button"
             className={`speakbtn${speech.ready ? '' : ' is-muted'}`}
             onClick={play}
-            title={speech.ready ? `朗读（${speech.voice ?? '日语'}）` : '当前设备没有日语语音'}
+            title={speech.ready ? `朗读（${speech.voice ?? '日语'}）` : speechHint(speech)}
             aria-label={speech.ready ? '朗读' : '当前设备没有日语语音'}
           >
             <IconVolume size={20} />

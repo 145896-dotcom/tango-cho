@@ -17,9 +17,9 @@ import { DIRECTION_META, DIRECTION_ORDER } from '../lib/quiz'
 import { navigate } from '../lib/router'
 import { dayKey, recentDays, storageAvailable } from '../lib/storage'
 import {
-  NO_VOICE_HINT,
   initSpeech,
   speak,
+  speechHint,
   speechState,
   subscribeSpeech,
   type SpeechState,
@@ -73,8 +73,9 @@ export function StatsScreen() {
   }, [])
 
   const testVoice = () => {
-    if (!speechState().ready) {
-      toast(NO_VOICE_HINT)
+    const current = speechState()
+    if (!current.ready) {
+      toast(speechHint(current))
       return
     }
     speak('こんにちは、にほんご')
@@ -290,12 +291,20 @@ export function StatsScreen() {
         <section className="block">
           <header className="block__head">
             <h2>发音</h2>
-            <span>{speech.ready ? `使用「${speech.voice}」` : '没有日语语音'}</span>
+            <span>
+              {speech.status === 'ready'
+                ? `使用「${speech.voice}」`
+                : speech.status === 'missing'
+                  ? `日语 0 / 共 ${speech.voiceCount} 个语音`
+                  : speech.status === 'unsupported'
+                    ? '浏览器不支持朗读'
+                    : '语音列表为空'}
+            </span>
           </header>
           <p className="block__copy">
-            {speech.ready
-              ? '答题后会朗读单词；也可以点词条里的喇叭单独听。'
-              : '这台设备没有可用的日语语音，喇叭不会出声。装一个日语语音包再刷新页面即可。'}
+            {speech.status === 'ready'
+              ? `设备有 ${speech.japaneseCount} 个日语语音。答题后会朗读单词，也可以点词条里的喇叭单独听。`
+              : speechHint(speech)}
           </p>
           <div className="data-actions" style={{ marginTop: 12 }}>
             <button type="button" className="ghostbtn ghostbtn--sm" onClick={testVoice}>
