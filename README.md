@@ -85,6 +85,7 @@ UI 参照你给的四个站点做了取用，没有整包搬组件，只把合�
 - [motiondivision/motion](https://github.com/motiondivision/motion) — 弹簧 / 布局动画
 - [richardtallent/vite-plugin-singlefile](https://github.com/richardtallent/vite-plugin-singlefile) — 内联成单个 HTML，离线双击可用
 - [WaniKani/WanaKana](https://github.com/WaniKani/WanaKana) — 假名转罗马音
+- [rany2/edge-tts](https://github.com/rany2/edge-tts) — 生成 576 段日语读音（仅构建期使用，不随页面运行）
 - [catdad/canvas-confetti](https://github.com/catdad/canvas-confetti) — 完成一轮时的小庆祝
 - [vitejs/vite](https://github.com/vitejs/vite) · [facebook/react](https://github.com/facebook/react)
 
@@ -107,6 +108,7 @@ GitHub Pages 会在一两分钟内重新部署（当前 Pages 源：`main` 分�
 src/
   data/words.json    词库（576 词，含课次/词性/释义）
   data/catalog.ts    词库索引与检索
+  lib/audio.ts       预录读音（探测 / 预加载 / 播放，失败退回语音合成）
   lib/srs.ts         FSRS 封装（评级、掌握度、到期判断）
   lib/quiz.ts        出题：四种问法、干扰项挑选
   lib/session.ts     一轮取词（到期优先，再新词；支持课×部分自选）
@@ -115,6 +117,9 @@ src/
   store.tsx          进度、正确率、连续天数、错题本、分区重置（localStorage）
   styles.css         深青绿主题 + 光晕背景 + 动效
 tools/build_words.py 从 DOCX 重建词库
+tools/build_audio.py 用 edge-tts 生成 docs/audio/ 下的读音
+docs/index.html      线上版（GitHub Pages 源：main 分支 /docs）
+docs/audio/          576 段读音 mp3
 dist/index.html      打包好的单文件成品
 ```
 
@@ -124,6 +129,14 @@ dist/index.html      打包好的单文件成品
   喇叭会变暗，点它会提示怎么安装；「学习统计 → 发音」里能看到当前用的语音、测试一下，或看各系统的安装步骤。
 - 进度存在浏览器 localStorage：换浏览器或清理网站数据会丢，可在「学习统计 → 导出进度」备份成 JSON 再导入。
 - Firefox 对 `file://` 页面的 localStorage 有限制；用 Chrome / Edge 双击打开最稳妥。
+
+## 发音
+
+- **线上版每个词都带一段预录读音**：`docs/audio/<词卡-id>.mp3`，共 576 段（日语女声，语速 −5%）。
+  答题后自动播放，点词条里的喇叭也能单独听，**不依赖设备是否装了日语语音**。
+- 离线单文件版旁边没有 `audio/` 目录时，会自动退回浏览器的语音合成（这时才需要系统日语语音）；
+  「学习统计 → 发音」会显示当前用的是录音还是系统语音，并提供各系统的语音安装步骤。
+- 重新生成录音：`pip install edge-tts` 后运行 `python tools/build_audio.py`（已存在的文件会跳过，可断点续跑）。
 
 ## 版权与数据
 

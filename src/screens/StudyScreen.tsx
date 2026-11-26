@@ -20,6 +20,13 @@ import {
   IconVolumeOff,
 } from '../components/Icons'
 import { LESSON_BY_NO, WORDS_BY_ID, romajiOf } from '../data/catalog'
+import {
+  audioReady,
+  clipAvailable,
+  playClip,
+  preloadClip,
+  probeAudio,
+} from '../lib/audio'
 import { formatDuration, formatPercent } from '../lib/format'
 import { navigate, useRoute } from '../lib/router'
 import { buildSession, parseList, scopeOf, type Scope } from '../lib/session'
@@ -79,6 +86,7 @@ export function StudyScreen() {
   const [detailWord, setDetailWord] = useState<Word | null>(null)
   const [menuOpen, setMenuOpen] = useState(false)
   const [speech, setSpeech] = useState<SpeechState>(() => speechState())
+  const [audio, setAudio] = useState(() => audioReady())
   const warnedNoVoice = useRef(false)
 
   const startedAt = useRef(Date.now())
@@ -87,20 +95,23 @@ export function StudyScreen() {
   useEffect(() => {
     initSpeech()
     setSpeech(speechState())
+    void probeAudio().then(setAudio)
     return subscribeSpeech(() => setSpeech(speechState()))
   }, [])
 
-  const speakOrExplain = (text: string) => {
+  const speakOrExplain = (word: Word) => {
+    if (clipAvailable(word.id) && playClip(word.id)) return
     const current = speechState()
     if (!current.ready) {
       toast(speechHint(current))
       return
     }
-    speak(text)
+    speak(word.kana)
   }
 
   const playWord = (word: Word) => {
     if (!state.settings.autoSpeak) return
+    if (clipAvailable(word.id) && playClip(word.id)) return
     const current = speechState()
     if (!current.ready) {
       if (!warnedNoVoice.current) {
@@ -120,6 +131,11 @@ export function StudyScreen() {
   }, [scope, lessonParam, state.settings.lastLesson, updateSettings])
 
   const q: Question | undefined = questions[idx]
+
+  // Warm the pronunciation clip while the question is on screen.
+  useEffect(() => {
+    if (q) preloadClip(q.word.id)
+  }, [q?.word.id])
 
   const replayHref = (() => {
     const params = new URLSearchParams(route.query)
@@ -341,6 +357,7 @@ export function StudyScreen() {
     }
   })()
   const ok = picked === q.answer
+  const canHear = audio || speech.ready
   const cueValue =
     q.cue === 'meaning' ? q.word.meaning : q.cue === 'kana' ? q.word.kana : q.word.surface
   const cueLong = q.cue === 'meaning' ? cueValue.length > 16 : cueValue.length >= 8
@@ -408,14 +425,10 @@ export function StudyScreen() {
                 <span className={`answer-note__value${note.jp ? ' jp' : ''}`}>{note.value}</span>
                 <button
                   type="button"
-                  className={`answer-note__speak${speech.ready ? '' : ' is-muted'}`}
-                  onClick={() => speakOrExplain(q.word.kana)}
-                  aria-label={speech.ready ? '朗读单词' : '当前设备没有日语语音'}
-                  title={
-                    speech.ready
-                      ? '朗读'
-                      : speechHint(speech)
-                  }
+                  className={`answer-note__speak${canHear ? '' : ' is-muted'}`}
+                  onClick={() => speakOrExplain(q.word)}
+                  aria-label={canHear ? '朗读单词' : '这台设备暂时没有日语发音'}
+                  title={canHear ? '朗读' : speechHint(speech)}
                 >
                   <IconVolume size={17} />
                 </button>

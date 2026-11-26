@@ -11,7 +11,8 @@ import {
   IconUpload,
   IconVolume,
 } from '../components/Icons'
-import { LESSONS, META, TOTAL } from '../data/catalog'
+import { LESSONS, META, TOTAL, WORDS } from '../data/catalog'
+import { audioReady, playClip, probeAudio } from '../lib/audio'
 import { formatPercent, pad2 } from '../lib/format'
 import { DIRECTION_META, DIRECTION_ORDER } from '../lib/quiz'
 import { navigate } from '../lib/router'
@@ -64,15 +65,18 @@ export function StatsScreen() {
   const [confirmReset, setConfirmReset] = useState(false)
   const [voiceHelp, setVoiceHelp] = useState(false)
   const [speech, setSpeech] = useState<SpeechState>(() => speechState())
+  const [audio, setAudio] = useState(() => audioReady())
   const fileRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     initSpeech()
     setSpeech(speechState())
+    void probeAudio().then(setAudio)
     return subscribeSpeech(() => setSpeech(speechState()))
   }, [])
 
   const testVoice = () => {
+    if (audio && playClip(WORDS[0].id)) return
     const current = speechState()
     if (!current.ready) {
       toast(speechHint(current))
@@ -292,19 +296,23 @@ export function StatsScreen() {
           <header className="block__head">
             <h2>发音</h2>
             <span>
-              {speech.status === 'ready'
-                ? `使用「${speech.voice}」`
-                : speech.status === 'missing'
-                  ? `日语 0 / 共 ${speech.voiceCount} 个语音`
-                  : speech.status === 'unsupported'
-                    ? '浏览器不支持朗读'
-                    : '语音列表为空'}
+              {audio
+                ? `使用录音 · ${TOTAL} 个词`
+                : speech.status === 'ready'
+                  ? `使用「${speech.voice}」`
+                  : speech.status === 'missing'
+                    ? `日语 0 / 共 ${speech.voiceCount} 个语音`
+                    : speech.status === 'unsupported'
+                      ? '浏览器不支持朗读'
+                      : '语音列表为空'}
             </span>
           </header>
           <p className="block__copy">
-            {speech.status === 'ready'
-              ? `设备有 ${speech.japaneseCount} 个日语语音。答题后会朗读单词，也可以点词条里的喇叭单独听。`
-              : speechHint(speech)}
+            {audio
+              ? '每个词的读音都是预先录好的，不依赖系统语音；答题后自动播放，点喇叭也能单独听。'
+              : speech.status === 'ready'
+                ? `设备有 ${speech.japaneseCount} 个日语语音。答题后会朗读单词，也可以点词条里的喇叭单独听。`
+                : speechHint(speech)}
           </p>
           <div className="data-actions" style={{ marginTop: 12 }}>
             <button type="button" className="ghostbtn ghostbtn--sm" onClick={testVoice}>

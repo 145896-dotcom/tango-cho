@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { LESSON_BY_NO, SECTION_LABELS, romajiOf } from '../data/catalog'
+import { audioReady, clipAvailable, playClip, probeAudio } from '../lib/audio'
 import { formatDue } from '../lib/format'
 import { masteryOf } from '../lib/srs'
 import {
@@ -28,10 +29,12 @@ export function WordDetailSheet({
   const { cardOf } = useStore()
   const toast = useToast()
   const [speech, setSpeech] = useState<SpeechState>(() => speechState())
+  const [audio, setAudio] = useState(() => audioReady())
 
   useEffect(() => {
     initSpeech()
     setSpeech(speechState())
+    void probeAudio().then(setAudio)
     return subscribeSpeech(() => setSpeech(speechState()))
   }, [])
 
@@ -45,6 +48,7 @@ export function WordDetailSheet({
   const reading = word.kana !== word.surface ? word.kana : ''
 
   const play = () => {
+    if (clipAvailable(word.id) && playClip(word.id)) return
     const current = speechState()
     if (!current.ready) {
       toast(speechHint(current))
@@ -52,6 +56,7 @@ export function WordDetailSheet({
     }
     speak(reading || word.surface)
   }
+  const canHear = audio || speech.ready
 
   return (
     <Sheet open={!!word} onClose={onClose} title="单词详情">
@@ -64,10 +69,10 @@ export function WordDetailSheet({
           </div>
           <button
             type="button"
-            className={`speakbtn${speech.ready ? '' : ' is-muted'}`}
+            className={`speakbtn${canHear ? '' : ' is-muted'}`}
             onClick={play}
-            title={speech.ready ? `朗读（${speech.voice ?? '日语'}）` : speechHint(speech)}
-            aria-label={speech.ready ? '朗读' : '当前设备没有日语语音'}
+            title={canHear ? '朗读' : speechHint(speech)}
+            aria-label={canHear ? '朗读' : '这台设备暂时没有日语发音'}
           >
             <IconVolume size={20} />
           </button>
